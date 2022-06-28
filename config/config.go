@@ -3,12 +3,17 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
 
 	"github.com/Shopify/sarama"
 )
 
 func GetProducer(certFile, keyFile, caFile, broker string) (sarama.SyncProducer, error) {
+	if broker == "" {
+		return nil, errors.New("no broker set")
+	}
+
 	config, err := kafkaConfig(certFile, keyFile, caFile)
 	if err != nil {
 		return nil, err

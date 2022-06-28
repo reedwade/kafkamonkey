@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	cfgFile                   string
 	certFile, keyFile, caFile string
 	broker                    string
 )
@@ -41,46 +40,40 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	viperConfig()
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	// viper.SetDefault("broker", "localhost:1002")
+	rootCmd.PersistentFlags().StringVar(&broker, "broker", viper.GetString("broker"), "broker host:port")
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kafkamonkey.yaml)")
+	viper.SetDefault("service_key_file", "service.key")
+	rootCmd.PersistentFlags().StringVar(&keyFile, "service-key-file", viper.GetString("service_key_file"), "broker key file")
 
-	rootCmd.PersistentFlags().StringVar(&keyFile, "service-key-file", "service.key", "broker key file")
-	rootCmd.PersistentFlags().StringVar(&certFile, "service-cert-file", "service.cert", "broker cert file")
-	rootCmd.PersistentFlags().StringVar(&caFile, "ca-file", "ca.pem", "broker ca file")
-	rootCmd.PersistentFlags().StringVar(&broker, "broker", "", "broker host:port")
+	viper.SetDefault("service_cert_file", "service.cert")
+	rootCmd.PersistentFlags().StringVar(&certFile, "service-cert-file", viper.GetString("service_cert_file"), "broker cert file")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	viper.SetDefault("ca_file", "ca.pem")
+	rootCmd.PersistentFlags().StringVar(&caFile, "ca-file", viper.GetString("ca_file"), "broker ca file")
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".kafkamonkey" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".kafkamonkey")
+// viperConfig reads in config file and ENV variables if set.
+func viperConfig() {
+	home, err := homedir.Dir()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Search for config file in current and home directory with name ".kafkamonkey" (without extension).
+	viper.AddConfigPath(".")
+	viper.AddConfigPath(home)
+	viper.SetConfigName(".kafkamonkey")
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, notFound := err.(viper.ConfigFileNotFoundError); !notFound {
+			fmt.Printf("Problem with config file (%v) :%v\n", viper.ConfigFileUsed(), err)
+			os.Exit(1)
+		}
 	}
 }
