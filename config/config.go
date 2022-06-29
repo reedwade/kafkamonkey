@@ -3,29 +3,38 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"io/ioutil"
 
 	"github.com/Shopify/sarama"
 )
 
-func GetProducer(certFile, keyFile, caFile, broker string) (sarama.SyncProducer, error) {
-	if broker == "" {
-		return nil, errors.New("no broker set")
-	}
+// func Ping(certFile, keyFile, caFile, broker string) error {
 
-	config, err := kafkaConfig(certFile, keyFile, caFile)
-	if err != nil {
-		return nil, err
-	}
+// 	client, err := GetClient(certFile, keyFile, caFile, broker)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	brokers := []string{broker}
-	producer, err := sarama.NewSyncProducer(brokers, config)
-	if err != nil {
-		return nil, err
-	}
-	return producer, nil
-}
+// 	fmt.Printf("BROKERS\n")
+// 	brokers := client.Brokers()
+// 	// sort.Sort(brokers)
+// 	for _, v := range brokers {
+// 		fmt.Printf("broker id%v %v\n", v.ID(), v.Addr())
+// 	}
+
+// 	topics, err := client.Topics()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	fmt.Printf("TOPICS (%v)\n", len(topics))
+// 	sort.Strings(topics)
+// 	for _, topic := range topics {
+// 		fmt.Printf("%v - \n", topic)
+// 		// client.InSyncReplicas()
+// 	}
+
+// 	return nil
+// }
 
 func kafkaConfig(certFile, keyFile, caFile string) (*sarama.Config, error) {
 	keypair, err := tls.LoadX509KeyPair(certFile, keyFile)
