@@ -25,7 +25,7 @@ var pingCmd = &cobra.Command{
 			return brokers[i].ID() < brokers[j].ID()
 		})
 		for _, v := range brokers {
-			fmt.Printf("  id%v %v\n", v.ID(), v.Addr())
+			fmt.Printf("  %v %v\n", v.ID(), v.Addr())
 		}
 
 		topics, err := client.Topics()
