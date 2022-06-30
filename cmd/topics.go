@@ -13,7 +13,7 @@ var topicsCmd = &cobra.Command{
 	Short: "list the topics and in sync replica situation by partition",
 	// Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := config.GetClient(certFile, keyFile, caFile, broker)
+		client, err := config.GetClient(!skipTLS, certFile, keyFile, caFile, broker)
 		if err != nil {
 			log.Error(err)
 			return

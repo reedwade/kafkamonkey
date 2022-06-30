@@ -13,6 +13,7 @@ import (
 
 var (
 	certFile, keyFile, caFile string
+	skipTLS                   bool
 	broker                    string
 )
 
@@ -53,6 +54,8 @@ func init() {
 
 	viper.SetDefault("ca_file", "ca.pem")
 	rootCmd.PersistentFlags().StringVar(&caFile, "ca-file", viper.GetString("ca_file"), "broker ca file")
+
+	rootCmd.PersistentFlags().BoolVar(&skipTLS, "no-tls", false, "don't make a TLS connection")
 }
 
 // viperConfig reads in config file and ENV variables if set.

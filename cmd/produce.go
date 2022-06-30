@@ -2,19 +2,16 @@ package cmd
 
 import (
 	"fmt"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/reedwade/kafkamonkey/config"
 	"github.com/reedwade/kafkamonkey/messages"
 
-	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 )
 
 const (
-	topicName = "test-topic"
-
 	workerCountOpt              = "workers"
 	workerCountDefault          = 5
 	batchCountOpt               = "batches"
@@ -23,6 +20,8 @@ const (
 	messageCountPerBatchDefault = 10
 	messageValueLengthOpt       = "message-length"
 	messageValueLengthDefault   = 10
+	topicOpt                    = "topic"
+	topicDefault                = "monkey"
 )
 
 var produceCmd = &cobra.Command{
@@ -35,8 +34,9 @@ var produceCmd = &cobra.Command{
 		batchCount, _ := cmd.Flags().GetInt(batchCountOpt)
 		messageCountPerBatch, _ := cmd.Flags().GetInt(messageCountPerBatchOpt)
 		messageValueLength, _ := cmd.Flags().GetInt(messageValueLengthOpt)
+		topic, _ := cmd.Flags().GetString(topicOpt)
 
-		producer, err := config.GetProducer(certFile, keyFile, caFile, broker)
+		producer, err := config.GetProducer(!skipTLS, certFile, keyFile, caFile, broker)
 		if err != nil {
 			log.Error(err)
 			return
@@ -51,35 +51,19 @@ var produceCmd = &cobra.Command{
 			WithField(messageValueLengthOpt, messageValueLength).
 			Info("starting")
 
-		worker := func(worker int, messageBatches <-chan []*sarama.ProducerMessage, wg *sync.WaitGroup) {
-			log := log.WithField("worker", worker)
-			log.Info("starting")
-			for messageBatch := range messageBatches {
-				time.Sleep(time.Second)
-				t1 := time.Now()
-				producer.SendMessages(messageBatch)
-				log.
-					WithField("topic", messageBatch[0].Topic).
-					WithField("time_taken", time.Since(t1)).
-					Info("batch sent")
-			}
-			log.Info("done")
-			wg.Done()
-		}
+		wg, workChannel := messages.NewWorkerPool(log, workerCount, producer)
 
-		workChannel := make(chan []*sarama.ProducerMessage)
-
-		wg := &sync.WaitGroup{}
-		wg.Add(workerCount)
-
-		for i := 1; i <= workerCount; i++ {
-			go worker(i, workChannel, wg)
-		}
+		now := time.Now().UTC().Format("2006-01-02T150405")
 
 		for i := 0; i < batchCount; i++ {
-			batchTopicName := fmt.Sprintf("%v-%v", topicName, i)
-			messages, _ := messages.MakeMessages(batchTopicName, messageCountPerBatch, messageValueLength)
-			workChannel <- messages
+			batchTopic := strings.ReplaceAll(topic, "BATCHID", fmt.Sprintf("%05d", i))
+			batchTopic = strings.ReplaceAll(batchTopic, "NOW", now)
+			// batchTopicName := fmt.Sprintf("%v-%v", topicName, i)
+			m, _ := messages.MakeMessages(batchTopic, messageCountPerBatch, messageValueLength)
+			workChannel <- messages.MessagesAndBatchID{
+				Messages: m,
+				ID:       i,
+			}
 		}
 		close(workChannel)
 
@@ -96,7 +80,8 @@ func init() {
 	rootCmd.AddCommand(produceCmd)
 
 	produceCmd.Flags().Int(workerCountOpt, workerCountDefault, "how many concurrent workers")
-	produceCmd.Flags().Int(batchCountOpt, batchCountDefault, "how many batches - each batch gets a new topic")
+	produceCmd.Flags().Int(batchCountOpt, batchCountDefault, "how many batches")
 	produceCmd.Flags().Int(messageCountPerBatchOpt, messageCountPerBatchDefault, "")
+	produceCmd.Flags().String(topicOpt, topicDefault, "'BATCHID' is replaced with the batch number, 'NOW' is replaced with time and date (ex: 2022-06-29T231846)")
 	produceCmd.Flags().Int(messageValueLengthOpt, messageValueLengthDefault, "")
 }
